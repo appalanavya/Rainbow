@@ -14,23 +14,15 @@ const categories = [
   { id: "maternity", label: "Maternity Shoots" },
 ]
 
-// Gallery images - easily replaceable
-const galleryImages = [
-  { id: 1, src: "/images/gallery/pre-birthday-1.jpg", category: "pre-birthday", alt: "Pre Birthday Shoot" },
-  { id: 2, src: "/images/gallery/baby-1.jpg", category: "baby", alt: "Baby Shoot" },
-  { id: 3, src: "/images/gallery/family-1.jpg", category: "family", alt: "Family Shoot" },
-  { id: 4, src: "/images/gallery/maternity-1.jpg", category: "maternity", alt: "Maternity Shoot" },
-  { id: 5, src: "/images/themes/royal-prince.jpg", category: "pre-birthday", alt: "Royal Prince Theme" },
-  { id: 6, src: "/images/themes/floral-garden.jpg", category: "baby", alt: "Floral Garden Theme" },
-  { id: 7, src: "/images/themes/krishna.jpg", category: "pre-birthday", alt: "Krishna Theme" },
-  { id: 8, src: "/images/themes/cake-smash.jpg", category: "pre-birthday", alt: "Cake Smash Theme" },
-  { id: 9, src: "/images/themes/moon-stars.jpg", category: "baby", alt: "Moon Stars Theme" },
-  { id: 10, src: "/images/themes/jungle-safari.jpg", category: "baby", alt: "Jungle Safari Theme" },
-  { id: 11, src: "/images/themes/traditional.jpg", category: "family", alt: "Traditional Theme" },
-  { id: 12, src: "/images/themes/vintage-cart.jpg", category: "baby", alt: "Vintage Cart Theme" },
-]
+interface GalleryImage {
+  id: number
+  src: string
+  category: string
+  alt: string
+}
 
-export function GallerySection() {
+export function GallerySection({ initialImages = [] }: { initialImages?: GalleryImage[] }) {
+  const galleryImages = initialImages
   const ref = useRef(null)
   const isInView = useInView(ref, { once: true, margin: "-100px" })
   const [activeCategory, setActiveCategory] = useState("all")
