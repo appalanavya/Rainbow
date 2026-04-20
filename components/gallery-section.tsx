@@ -2,9 +2,11 @@
 
 import { motion, AnimatePresence } from "framer-motion"
 import { useInView } from "framer-motion"
-import { useRef, useState } from "react"
+import { collection, onSnapshot, query, orderBy } from "firebase/firestore"
+import { db } from "@/lib/firebase"
+import { useRef, useState, useEffect } from "react"
 import Image from "next/image"
-import { X, ChevronLeft, ChevronRight } from "lucide-react"
+import { X, ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
 
 const categories = [
   { id: "all", label: "All" },
@@ -15,18 +17,40 @@ const categories = [
 ]
 
 interface GalleryImage {
-  id: number
+  id: string | number
   src: string
   category: string
   alt: string
 }
 
 export function GallerySection({ initialImages = [] }: { initialImages?: GalleryImage[] }) {
-  const galleryImages = initialImages
+  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>(initialImages)
+  const [isLoading, setIsLoading] = useState(initialImages.length === 0)
   const ref = useRef(null)
+
+  useEffect(() => {
+    // Real-time Firestore sync
+    const q = query(collection(db, "gallery_images"), orderBy("createdAt", "desc"))
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const images = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as GalleryImage[]
+      
+      setGalleryImages(images)
+      setIsLoading(false)
+    }, (error) => {
+      console.error("Firestore sync error:", error)
+      setIsLoading(false)
+    })
+
+    return () => unsubscribe()
+  }, [])
+
   const isInView = useInView(ref, { once: true, margin: "-100px" })
   const [activeCategory, setActiveCategory] = useState("all")
-  const [selectedImage, setSelectedImage] = useState<number | null>(null)
+  const [selectedImage, setSelectedImage] = useState<string | number | null>(null)
 
   const filteredImages =
     activeCategory === "all"
@@ -106,43 +130,54 @@ export function GallerySection({ initialImages = [] }: { initialImages?: Gallery
           className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
         >
           <AnimatePresence mode="popLayout">
-            {filteredImages.map((image, index) => (
-              <motion.div
-                key={image.id}
-                layout
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                transition={{ duration: 0.4, delay: index * 0.05 }}
-                className={`group relative cursor-pointer ${
-                  index % 5 === 0 ? "row-span-2" : ""
-                }`}
-                onClick={() => setSelectedImage(image.id)}
-              >
-                <div
-                  className={`relative overflow-hidden rounded-xl shadow-md hover:shadow-xl transition-all duration-500 ${
-                    index % 5 === 0 ? "aspect-[3/5]" : "aspect-square"
+            {isLoading ? (
+              <div className="col-span-full flex flex-col items-center justify-center py-20 text-muted-foreground">
+                <Loader2 className="w-10 h-10 animate-spin mb-4 opacity-20" />
+                <p className="text-sm font-medium animate-pulse">Loading gallery...</p>
+              </div>
+            ) : filteredImages.length > 0 ? (
+              filteredImages.map((image, index) => (
+                <motion.div
+                  key={image.id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.4, delay: index * 0.05 }}
+                  className={`group relative cursor-pointer ${
+                    index % 5 === 0 ? "row-span-2" : ""
                   }`}
+                  onClick={() => setSelectedImage(image.id)}
                 >
-                  <Image
-                    src={image.src}
-                    alt={image.alt}
-                    fill
-                    className="object-cover transition-transform duration-700 group-hover:scale-110"
-                  />
-                  {/* Hover Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-foreground/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  {/* View Icon */}
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
-                      <svg className="w-5 h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                      </svg>
+                  <div
+                    className={`relative overflow-hidden rounded-xl shadow-md hover:shadow-xl transition-all duration-500 ${
+                      index % 5 === 0 ? "aspect-[3/5]" : "aspect-square"
+                    }`}
+                  >
+                    <Image
+                      src={image.src}
+                      alt={image.alt}
+                      fill
+                      className="object-cover transition-transform duration-700 group-hover:scale-110"
+                    />
+                    {/* Hover Overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-foreground/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    {/* View Icon */}
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+                        <svg className="w-5 h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                        </svg>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              ))
+            ) : (
+              <div className="col-span-full py-20 text-center text-muted-foreground border-2 border-dashed rounded-2xl">
+                <p>No images found in this category.</p>
+              </div>
+            )}
           </AnimatePresence>
         </motion.div>
       </div>
